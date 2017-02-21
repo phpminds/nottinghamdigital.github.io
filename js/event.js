@@ -1,4 +1,3 @@
-
 /**
  * Usage
  *
@@ -10,36 +9,35 @@
  */
 
 
-var NDEvent = function (args) {
+var NDEvent = function(args) {
     this.apiUrl = args.api;
     this.events = [];
     this.cache = false;
-    
+
     if (this.isLocalStorageAvailable) {
         this.cache = window.localStorage;
         this.refreshCache();
     }
-    
+
 };
 
-NDEvent.prototype.isLocalStorageAvailable=function(type) {
+NDEvent.prototype.isLocalStorageAvailable = function(type) {
     try {
         var storage = window[type],
             x = '__storage_test__';
         storage.setItem(x, x);
         storage.removeItem(x);
         return true;
-    }
-    catch(e) {
+    } catch (e) {
         return false;
     }
 }
 
-NDEvent.prototype.renderEvents = function (groupNodes) {
+NDEvent.prototype.renderEvents = function(groupNodes) {
 
     var self = this;
 
-    groupNodes.each(function (index, node) {
+    groupNodes.each(function(index, node) {
 
         var groupName = $.trim($(node).html());
 
@@ -47,8 +45,7 @@ NDEvent.prototype.renderEvents = function (groupNodes) {
 
             var data = self.getByGroup(groupName);
             var date = data.date_time;
-            if(date !='')
-            {
+            if (date != '') {
                 date = date.replace('at ', '');
                 // Wednesday 5th October 2016 7:00pm
                 var niceDate = moment(date, 'dddd Do MMMM YYYY h:mma').format('Do MMMM');
@@ -65,7 +62,7 @@ NDEvent.prototype.renderEvents = function (groupNodes) {
 };
 
 
-NDEvent.prototype.getByGroup = function (groupName) {
+NDEvent.prototype.getByGroup = function(groupName) {
 
     if (!this.isCached(groupName)) {
         this.fetchGroup(groupName);
@@ -75,33 +72,39 @@ NDEvent.prototype.getByGroup = function (groupName) {
 
 };
 
-NDEvent.prototype.fetchGroup = function (groupName) {
+NDEvent.prototype.fetchGroup = function(groupName) {
     var self = this;
 
-    $.ajax(
-        {
-            method: "GET",
-            url: this.apiUrl,
-            data: {group: groupName}
+    $.ajax({
+        method: "GET",
+        url: this.apiUrl,
+        data: {
+            group: groupName
         }
-    ).done(function (data) {
-        if (data) {
+    }).done(function(data, textStatus, jqXHR) {
+
+        if (data && jqXHR.status === 200) {
             self.addEvent(groupName, data);
+            
+        } else {
+            self.setCacheExpiry(groupName+"-");
         }
     });
 };
 
-NDEvent.prototype.addEvent = function (groupName, data) {
+NDEvent.prototype.addEvent = function(groupName, data) {
     if (this.cache) {
         if (!this.isCached(groupName)) {
             this.cache.setItem(groupName, JSON.stringify(data));
+            this.cache.setItem( groupName +'-expiry', new Date(new Date().getTime() + 60 * 60 * 1000));
+
         }
     } else {
         this.events[groupName] = JSON.stringify(data);
     }
 };
 
-NDEvent.prototype.getEvent = function (groupName) {
+NDEvent.prototype.getEvent = function(groupName) {
     if (!this.cache) {
         if (groupName in this.events) {
             return this.events[groupName];
@@ -111,7 +114,7 @@ NDEvent.prototype.getEvent = function (groupName) {
     return this.getFromCache(groupName);
 };
 
-NDEvent.prototype.isCached = function (groupName) {
+NDEvent.prototype.isCached = function(groupName) {
 
     if (!this.cache) {
         if (groupName in this.events) {
@@ -127,14 +130,13 @@ NDEvent.prototype.isCached = function (groupName) {
     return true;
 };
 
-NDEvent.prototype.getFromCache = function (groupName) {
+NDEvent.prototype.getFromCache = function(groupName) {
     if (this.isCached(groupName)) {
         return JSON.parse(this.cache.getItem(groupName));
     }
 }
 
-// tomorrow's calculation taken from SO link: http://stackoverflow.com/questions/9444745/javascript-how-to-get-tomorrows-date-in-format-dd-mm-yy
-NDEvent.prototype.refreshCache = function () {
+NDEvent.prototype.refreshCache = function() {
     if (!this.cache) {
         return false;
     }
@@ -143,30 +145,37 @@ NDEvent.prototype.refreshCache = function () {
         // reset if more than 1 hour
         if (new Date() > Date.parse(this.cache.getItem('expiry'))) {
             this.cache.clear();
-            this.cache.setItem('expiry', new Date(new Date().getTime() + 60 * 60 * 1000));
+            this.setCacheExpiry('');
         }
     } else {
-        this.cache.setItem('expiry', new Date(new Date().getTime() + 60 * 60 * 1000));
+        this.setCacheExpiry('');
     }
 };
 
-NDEvent.prototype.load = function (groupsArray) {
+NDEvent.prototype.setCacheExpiry = function(groupName) {
+    if (this.cache && this.cache.getItem(groupName + 'expiry')) {
+
+        this.cache.setItem( groupName +'expiry', new Date(new Date().getTime() + 60 * 60 * 1000));
+
+    }
+};
+NDEvent.prototype.load = function(groupsArray) {
 
     var self = this;
 
-    groupsArray.forEach(function (groupName) {
+    groupsArray.forEach(function(groupName) {
         self.getByGroup(groupName);
     });
 };
 
-NDEvent.prototype.addFilter = function () {
+NDEvent.prototype.addFilter = function() {
     var $filterList = $('<ul class="filters"></ul>');
     $('.header').append($filterList);
     var types = ["all", "tech", "design", "ops"];
 
-    types.forEach(function (element) {
+    types.forEach(function(element) {
         var filter = '<li class="filter filter--' + element + ' " data-filter="' + element +
-            '"><span>' + element.split(' ').map(function (s) {
+            '"><span>' + element.split(' ').map(function(s) {
                 return s.slice(0, 1).toUpperCase() + s.slice(1).toLowerCase();
             }).join(' ') + '</span></li>';
 
@@ -180,8 +189,8 @@ NDEvent.prototype.addFilter = function () {
 
 };
 
-NDEvent.prototype.addFilterListener = function () {
-    $('[data-filter]').on('click', function (e) {
+NDEvent.prototype.addFilterListener = function() {
+    $('[data-filter]').on('click', function(e) {
         e.preventDefault();
         var filterSelected = $(this).data('filter');
         $('.filter').removeClass('filter--active').filter('[data-filter="' + filterSelected + '"]').addClass('filter--active');
@@ -193,34 +202,38 @@ NDEvent.prototype.addFilterListener = function () {
     });
 };
 
-NDEvent.prototype.sortByDate = function () {
+NDEvent.prototype.sortByDate = function() {
     var $events = $.makeArray($(".events").find(".event"));
-    var itemsToSort = $events.filter(function(e){ return $(e).data('isodate')});
-    var emptyItems = $events.filter(function(e){ return !$(e).data('isodate')});;
+    var itemsToSort = $events.filter(function(e) {
+        return $(e).data('isodate')
+    });
+    var emptyItems = $events.filter(function(e) {
+        return !$(e).data('isodate')
+    });;
 
-    itemsToSort.sort(function (a, b) {
+    itemsToSort.sort(function(a, b) {
         var a = new Date($(a).data("isodate"));
         var b = new Date($(b).data("isodate"));
-        return a < b? -1: a > b ?1:0;
+        return a < b ? -1 : a > b ? 1 : 0;
     });
-    emptyItems.sort(function(a,b){
+    emptyItems.sort(function(a, b) {
         var a = $(a).find('.org').text().toLowerCase();
         var b = $(b).find('.org').text().toLowerCase();
-        return a < b? -1: a > b ?1:0;
+        return a < b ? -1 : a > b ? 1 : 0;
 
     });
     $events = emptyItems.reverse().concat(itemsToSort.reverse());
 
-    $events.forEach(function (e) {
+    $events.forEach(function(e) {
 
         $(".events").prepend($(e));
     });
 };
 
-NDEvent.prototype.resetOrderText = function(){
+NDEvent.prototype.resetOrderText = function() {
 
-    $('.order').text(function () {
-    return $(this).text().replace("alphabetically", "by next up");
+    $('.order').text(function() {
+        return $(this).text().replace("alphabetically", "by next up");
     })
 
 };
@@ -229,7 +242,7 @@ NDEvent.prototype.resetOrderText = function(){
  **/
 
 
-(function ($) {
+(function($) {
 
     var arguments = {
 
@@ -238,16 +251,15 @@ NDEvent.prototype.resetOrderText = function(){
 
 
 
-
     var eventApi = new NDEvent(arguments),
         groupNodes = $('.vcard .url'),
-        groups = groupNodes.map(function () {
+        groups = groupNodes.map(function() {
             return $.trim($(this).text());
         }).get();
 
     eventApi.load(groups);
     $.ajax(); // dummy workaround for ajaxStop to always fire
-    $(document).ajaxStop(function () {
+    $(document).ajaxStop(function() {
         eventApi.renderEvents(groupNodes);
         eventApi.sortByDate();
         eventApi.resetOrderText();
