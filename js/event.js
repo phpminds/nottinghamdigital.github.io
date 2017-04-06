@@ -14,6 +14,7 @@ var NDEvent = function(args) {
     this.events = [];
     this.cache = false;
 
+
     if (this.isLocalStorageAvailable) {
         this.cache = window.localStorage;
         this.refreshCache();
@@ -85,9 +86,9 @@ NDEvent.prototype.fetchGroup = function(groupName) {
 
         if (data && jqXHR.status === 200) {
             self.addEvent(groupName, data);
-            
+
         } else {
-            self.setCacheExpiry(groupName+"-");
+            self.setCacheExpiry(groupName + "-");
         }
     });
 };
@@ -96,7 +97,7 @@ NDEvent.prototype.addEvent = function(groupName, data) {
     if (this.cache) {
         if (!this.isCached(groupName)) {
             this.cache.setItem(groupName, JSON.stringify(data));
-            this.cache.setItem( groupName +'-expiry', new Date(new Date().getTime() + 60 * 60 * 1000));
+            this.cache.setItem(groupName + '-expiry', new Date(new Date().getTime() + 60 * 60 * 1000));
 
         }
     } else {
@@ -137,25 +138,31 @@ NDEvent.prototype.getFromCache = function(groupName) {
 }
 
 NDEvent.prototype.refreshCache = function() {
-    if (!this.cache) {
+    var self = this;
+
+    if (!self.cache) {
         return false;
     }
 
-    if (this.cache.getItem('expiry')) {
-        // reset if more than 1 hour
-        if (new Date() > Date.parse(this.cache.getItem('expiry'))) {
-            this.cache.clear();
-            this.setCacheExpiry('');
+    for(groupName in self.events) {
+        
+        if (self.cache.getItem(groupName +'-expiry')) {
+            // reset if more than 1 hour
+            if (new Date() > Date.parse(self.cache.getItem(groupName +'-expiry'))) {
+                self.cache.clear();
+                self.setCacheExpiry(groupName);
+            }
+        } else {
+            self.setCacheExpiry(groupName);
         }
-    } else {
-        this.setCacheExpiry('');
     }
+
 };
 
 NDEvent.prototype.setCacheExpiry = function(groupName) {
     if (this.cache && this.cache.getItem(groupName + 'expiry')) {
 
-        this.cache.setItem( groupName +'expiry', new Date(new Date().getTime() + 60 * 60 * 1000));
+        this.cache.setItem(groupName + 'expiry', new Date(new Date().getTime() + 60 * 60 * 1000));
 
     }
 };
